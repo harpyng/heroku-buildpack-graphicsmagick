@@ -1,5 +1,4 @@
-heroku-buildpack-graphicsmagick
-===============================
+# heroku-buildpack-graphicsmagick
 
 Use the GraphicsMagick (1.3.36) inside Heroku. Works with [`heroku-20`](https://devcenter.heroku.com/articles/heroku-18-stack).
 
@@ -16,6 +15,7 @@ heroku buildpacks:add --index 2 https://github.com/bogini/heroku-buildpack-graph
 ```
 
 Include these at the beginning of your `Aptfile`
+
 ```
 debhelper
 g++
@@ -47,3 +47,6 @@ The next time you push your application it should install graphicsmagick before
 your application buildpack.
 
 For more info see [Using multiple buildpacks for an app](https://devcenter.heroku.com/articles/using-multiple-buildpacks-for-an-app)
+
+Also see this article for good explanation of how the buildpack process works:
+https://www.petekeen.net/introduction-to-heroku-buildpacks
