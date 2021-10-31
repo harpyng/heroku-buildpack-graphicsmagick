@@ -1,0 +1,68 @@
+#!/bin/bash
+
+set -e
+
+source `dirname $0`/../configs.sh
+
+# parse and derive params
+BUILD_DIR=$1
+CACHE_DIR=$2
+LP_DIR=`cd $(dirname $0); cd ..; pwd`
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+arrow() {
+  sed -u 's/^/-----> /'
+}
+
+echo "Installing graphicsmagick $GRAPHICS_MAGICK_VERSION" | arrow
+# we need this directory, it's our destination
+GM_VENDOR_DIR=$BUILD_DIR/vendor/graphicsmagick
+rm -rf $GM_VENDOR_DIR/*
+mkdir -p $GM_VENDOR_DIR
+
+# We'll cache the build here
+GM_SOURCE_DIR=$CACHE_DIR/graphicsmagick-$GRAPHICS_MAGICK_VERSION
+GM_CACHE_DIR=$CACHE_DIR/graphicsmagick
+mkdir -p $GM_CACHE_DIR
+
+if [ "$GM_FORCE_REBUILD" = 'true' ] || [ -z "$(ls -L $GM_CACHE_DIR)" ] && [ -z "$(ls -L $GM_VENDOR_DIR)" ]
+then
+  echo "Building runtime environment for graphicsmagick" | arrow
+  rm -rf $GM_CACHE_DIR
+  rm -rf $GM_SOURCE_DIR
+  mkdir -p $GM_SOURCE_DIR
+  mkdir -p $GM_CACHE_DIR
+
+  PACKAGE="https://downloads.sourceforge.net/project/graphicsmagick/graphicsmagick/$GRAPHICS_MAGICK_VERSION/GraphicsMagick-$GRAPHICS_MAGICK_VERSION.tar.gz"
+  curl $PACKAGE -L -o - | tar xzf - -C $GM_SOURCE_DIR 2>&1 | indent
+  cd $GM_SOURCE_DIR/GraphicsMagick-$GRAPHICS_MAGICK_VERSION
+
+  echo "Building for the first time this will take a while." | indent
+  ./configure --with-webp=false --prefix=$GM_CACHE_DIR >/dev/null
+  make install >/dev/null
+
+  echo "Cleaning the download directory" | indent
+  rm -rf $GM_SOURCE_DIR
+
+  cd $LP_DIR
+fi
+
+echo "Copying and linking graphicsmagick binaries to vendor" | arrow
+
+rsync -rv --exclude="share/" --exclude="include/" $GM_CACHE_DIR/ $GM_VENDOR_DIR
+
+mkdir -p $BUILD_DIR/bin/
+cp -R $GM_VENDOR_DIR/bin/* $BUILD_DIR/bin/
+
+mkdir -p $BUILD_DIR/.profile.d
+GM_BASH_FILE=$BUILD_DIR/.profile.d/graphicsmagick.sh
+echo "export PATH=\"\$HOME/bin:\$PATH\"" > $GM_BASH_FILE
+echo "export MAGICK_CONFIGURE_PATH=\"\$HOME/vendor/graphicsmagick/lib/GraphicsMagick-$GRAPHICS_MAGICK_VERSION/config\"" >> $GM_BASH_FILE
+echo "export LD_LIBRARY_PATH=\"\$HOME/vendor/graphicsmagick/lib/:\$LD_LIBRARY_PATH\"" >> $GM_BASH_FILE
+
+cat <<EOF > export
+export PATH=$BUILD_DIR/bin:$PATH
+EOF
